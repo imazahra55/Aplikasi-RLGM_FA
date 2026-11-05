@@ -125,7 +125,7 @@ label.f>small{display:block;color:var(--ink3);font-size:11px;margin-top:2px}
 #toast div{background:var(--navy);color:#fff;padding:9px 14px;border-radius:10px;font-size:13px;box-shadow:var(--sh)}
 .login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(1200px 600px at 10% 0%,#2c437a 0%,var(--navy) 55%,#0f1a37 100%);padding:20px}
 .login .box{background:#fff;border-radius:20px;max-width:880px;width:100%;padding:30px;box-shadow:0 30px 80px rgba(0,0,0,.35)}
-.rolecards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}
+.rolecards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:16px 0}
 .rolecard{border:2px solid var(--line);border-radius:14px;padding:14px;cursor:pointer}
 .rolecard.on{border-color:var(--purple);background:var(--purple-s)}
 .rolecard b{display:block;color:var(--navy)}
@@ -149,7 +149,7 @@ label.f>small{display:block;color:var(--ink3);font-size:11px;margin-top:2px}
   #side{position:fixed;left:-280px;transition:left .2s}#side.open{left:0;box-shadow:0 0 0 100vmax rgba(0,0,0,.35)}
   #menuBtn{display:inline-flex}#main{padding:14px}
   .g2,.g3,.g4,.fg{grid-template-columns:1fr}.book{grid-template-columns:1fr}
-  .rolecards{grid-template-columns:repeat(2,1fr)}
+  .rolecards{grid-template-columns:repeat(2,1fr)}.rolecard:last-child{grid-column:1/-1}
 }
 </style>
 </head>
@@ -164,7 +164,7 @@ label.f>small{display:block;color:var(--ink3);font-size:11px;margin-top:2px}
    agar semua perangkat otomatis tersambung ke database Google Sheets.
    Biarkan kosong ('') untuk mode lokal.                                  */
 window.RLGM_CONFIG = {
-  GAS_URL: 'https://script.google.com/macros/s/AKfycbxbb5tzJ-rLhR1LwvogOeRrQRcUarCTTW39vOh3OUaM55gtzGiVEbptTzas4opkkbz6/exec'
+  GAS_URL: ''
 };
 </script>
 <script>
@@ -269,13 +269,13 @@ function del(col,id,reason){const r=get(col,id);if(!r)return;DB.revisions.push({
 function revsOf(col,id){return DB.revisions.filter(v=>v.col===col&&v.rid===id)}
 
 /* ---------------- SESSION / ROLES ---------------- */
-const ROLES={admin:'Admin/Peneliti',dosen:'Dosen',mahasiswa:'Mahasiswa',observer:'Observer'};
+const ROLES={admin:'Admin/Peneliti',validator:'Validator',dosen:'Dosen',mahasiswa:'Mahasiswa',observer:'Observer'};
 const roleName=r=>ROLES[r]||r;
 function me(){if(S.role==='mahasiswa'){const s=get('students',S.sid);return s?{id:s.id,name:s.nama,student:s}:null}return get('users',S.uid)}
-function isA(){return S.role==='admin'}
-function isStaff(){return S.role==='admin'||S.role==='dosen'}
+function isA(){return S.role==='admin'||S.role==='validator'}
+function isStaff(){return isA()||S.role==='dosen'}
 function visibleClasses(){
-  if(S.role==='admin')return all('classes');
+  if(isA())return all('classes');
   if(S.role==='dosen')return all('classes',c=>c.dosenId===S.uid||(c.dosenIds||[]).includes(S.uid));
   if(S.role==='observer')return all('classes',c=>(c.observerIds||[]).includes(S.uid));
   const s=get('students',S.sid);return s?all('classes',c=>c.id===s.classId):[];
@@ -540,6 +540,7 @@ function seedDemo(){
   ins('users',{name:'Fathimah Az.Zahra Nasiruddin',role:'admin',username:'peneliti',email:'peneliti@example.ac.id',...pwFields('admin123')},true);
   const ds=ins('users',{name:'Dosen Pengampu',role:'dosen',username:'dosen',email:'dosen@example.ac.id',...pwFields('dosen123')},true);
   const ob=ins('users',{name:'Observer 1',role:'observer',username:'observer1',email:'observer@example.ac.id',instIds:[],...pwFields('observer123')},true);
+  ins('users',{name:'Validator Ahli',role:'validator',username:'validator',email:'validator@example.ac.id',...pwFields('validator123')},true);
   ins('users',{name:'Observer 2',role:'observer',username:'observer2',email:'observer2@example.ac.id',instIds:[],...pwFields('observer123')},true);
   seedReference();seedQuestions();
   const co=ins('courses',{name:'Pembelajaran Matematika SD',code:'PGSD5xx',prodi:'Pendidikan Guru Sekolah Dasar',fakultas:'Fakultas Ilmu Pendidikan',pt:'Universitas Negeri Malang',semAkademik:'Gasal',semMhs:'5',tahun:'2026/2027',sks:3,jmlTM:16,jadwal:'Senin, 07.00–09.30',ruang:'Ruang (isi)'},true);
@@ -617,7 +618,7 @@ const MENU=[
  ['Evaluasi Penelitian',[['mval','Model Validation Center','shield','admin'],['ival','Instrument Validation Center','shield','admin'],['prac','Practicality & Usability','star','admin,dosen,mahasiswa'],['irr','Inter-Rater Reliability','users','admin'],['item','Item Analysis','chart','admin'],['effect','Efektivitas Model','chart','admin,dosen'],['semester','Rapor Akademik Semester','award','admin,dosen,mahasiswa'],['reports','Research Data & Reports','db','admin,dosen']]],
  ['Tata Kelola',[['ethics','Etika & Data Governance','lock','admin,mahasiswa'],['settings','Settings','gear','admin,dosen,mahasiswa,observer']]]];
 const MENU_FLAT=MENU.flatMap(([g,it])=>it);
-function canAccess(page){if(page==='profile')return isStaff()||(S.role==='mahasiswa');const m=MENU_FLAT.find(x=>x[0]===page);if(!m)return true;const acc=DB.settings.access[page];return (acc||m[3].split(',')).includes(S.role)}
+function canAccess(page){if(page==='profile')return isStaff()||(S.role==='mahasiswa');if(S.role==='validator'&&page==='settings')return false;const m=MENU_FLAT.find(x=>x[0]===page);if(!m)return true;const acc=DB.settings.access[page]||m[3].split(',');const r=S.role==='validator'?'admin':S.role;return acc.includes(r)}
 function renderShell(){
   const root=document.getElementById('root');
   const vc=visibleClasses();if(!vc.find(c=>c.id===S.classId))S.classId=vc[0]?.id||null;
@@ -631,7 +632,7 @@ function renderShell(){
   ${DB.meta.demo?`<span class="pill demo" title="Kosongkan pada menu Settings sebelum pengumpulan data penelitian">DATA CONTOH</span>`:''}
   <div class="grow"></div><span id="saveInfo">${saveInfo()}</span>
   <a class="pill" style="cursor:pointer" onclick="go('dashboard')" title="Notifikasi">${icon('bell',13)} ${notif}</a>
-  <a class="pill" style="cursor:pointer" onclick="logout()">${icon('users',13)} ${esc(u?.name||'-')} · ${roleName(S.role)}</a></header>
+  <a class="pill" style="cursor:pointer" onclick="accountMenu()">${icon('users',13)} ${esc(u?.name||'-')} · ${roleName(S.role)}</a></header>
   <main id="main"></main></div></div>`}
 function render(){
   H.length=0;
@@ -643,6 +644,7 @@ function render(){
   if(AFTER[S.page]){try{AFTER[S.page]()}catch(e){console.error(e)}}
 }
 const PAGES={},AFTER={};
+function accountMenu(){modal('Akun',`<p><b>${esc(me()?.name||'-')}</b><br><span class="muted">${roleName(S.role)}</span></p>`,`<button class="btn pu" onclick="changePwForm()">${icon('lock',14)} Ganti password</button><button class="btn" onclick="closeModal();logout()">${icon('users',14)} Keluar</button>`)}
 /* ---------------- COMPUTATION HELPERS (integrated data) ---------------- */
 const ATT={H:'Hadir',I:'Izin',S:'Sakit',A:'Alpa',T:'Terlambat'};
 function attOf(sid,tm){return all('attendance',a=>a.classId===S.classId&&a.studentId===sid&&+a.tm===+tm).pop()}
@@ -1315,7 +1317,7 @@ PAGES.ethics=(p)=>{
   const view=p.view||'consent';const head=ph('Research Ethics & Data Governance','Etika & Tata Kelola Data','Persetujuan partisipasi, kode anonim, pemisahan data akademik–penelitian, hak akses, audit trail, backup, data dictionary, dan perlindungan data mentah.')+tabs([['consent','Persetujuan & anonim'],['access','Hak akses'],['audit','Audit trail'],['rev','Riwayat revisi'],['backup','Backup & pemulihan'],['dict','Data dictionary']],view,v=>go('ethics',{view:v}));
   if(view==='consent')return head+card('Teks persetujuan',`<textarea class="inp" id="cT" rows="4">${esc(DB.settings.consentText)}</textarea>${btn('Simpan teks',()=>{DB.settings.consentText=document.getElementById('cT').value;logA('UPDATE','settings','consentText','');save();toast('Tersimpan')},'sm p')}`)+
    card('Status persetujuan & kode anonim',`<div class="note">Pemisahan data: tampilan akademik (dosen) memakai nama; ekspor penelitian memakai kode anonim dan hanya peserta yang menyetujui. Mahasiswa lain hanya melihat kode anonim.</div>`+tbl(['NIM','Nama','Kode anonim','Status','Waktu','Aksi'],classStuds().map(s=>[s.nim,esc(s.nama),esc(s.anon),badge(s.consent||'Belum',s.consent==='Setuju'?'b-ok':'b-warn'),fmtDT(s.consentAt),btn('Catat persetujuan',()=>openForm({title:'Catat persetujuan — '+s.nama,fields:[{k:'consent',l:'Status',t:'select',o:['Setuju','Tidak setuju','Belum']},{k:'method',l:'Metode (formulir kertas/daring)'},{k:'doc',l:'Unggah bukti',t:'file'}],data:{consent:s.consent},onSave:v=>{upd('students',s.id,{consent:v.consent,consentAt:now()},'Pencatatan persetujuan: '+(v.method||''));ins('consentLog',{studentId:s.id,status:v.consent,method:v.method,doc:v.doc,at:now(),by:userLabel()});render()}}),'sm')]),{search:true}))+card('Log persetujuan',tbl(['Waktu','Kode anonim','Status','Metode','Oleh'],all('consentLog').map(c=>[fmtDT(c.at),esc(get('students',c.studentId)?.anon),c.status,esc(c.method||'mandiri'),esc(c.by||'mahasiswa')])));
-  if(view==='access')return head+card('Matriks hak akses menu',`<div class="note">Centang peran yang dapat mengakses setiap menu. Pembatasan data tambahan: dosen hanya melihat kelas yang dikelolanya; observer hanya instrumen yang ditugaskan; mahasiswa hanya datanya sendiri.</div>`+tbl(['Menu',...Object.values(ROLES).map(r=>[r,'c'])],MENU_FLAT.map(([k,l,ic,def])=>{const acc=DB.settings.access[k]||def.split(',');return [esc(l),...Object.keys(ROLES).map(r=>`<input type="checkbox" ${acc.includes(r)?'checked':''} ${r==='admin'&&['settings','ethics'].includes(k)?'disabled':''} onchange="${on(e=>{const a=new Set(DB.settings.access[k]||def.split(','));e.target.checked?a.add(r):a.delete(r);DB.settings.access[k]=[...a];logA('ACCESS','settings',k,[...a].join(','));save()})}">`)]})));
+  if(view==='access')return head+card('Matriks hak akses menu',`<div class="note">Centang peran yang dapat mengakses setiap menu. Kolom Validator otomatis mengikuti Admin (kecuali Settings). Pembatasan data tambahan: dosen hanya melihat kelas yang dikelolanya; observer hanya instrumen yang ditugaskan; mahasiswa hanya datanya sendiri.</div>`+tbl(['Menu',...Object.values(ROLES).map(r=>[r,'c'])],MENU_FLAT.map(([k,l,ic,def])=>{const acc=DB.settings.access[k]||def.split(',');return [esc(l),...Object.keys(ROLES).map(r=>r==='validator'?`<input type="checkbox" disabled ${acc.includes('admin')&&k!=='settings'?'checked':''} title="Validator mengikuti hak Admin, kecuali Settings">`:`<input type="checkbox" ${acc.includes(r)?'checked':''} ${r==='admin'&&['settings','ethics'].includes(k)?'disabled':''} onchange="${on(e=>{const a=new Set(DB.settings.access[k]||def.split(','));e.target.checked?a.add(r):a.delete(r);DB.settings.access[k]=[...a];logA('ACCESS','settings',k,[...a].join(','));save()})}">`)]})));
   if(view==='audit'){const a=DB.audit.slice().reverse();return head+card('Audit trail ('+a.length+' entri)',tbl(['Waktu','Pengguna','Aksi','Koleksi','ID','Detail'],a.slice(0,500).map(x=>[fmtDT(x.ts),esc(x.user),badge(x.action,x.action.startsWith('DELETE')?'b-bad':x.action==='UPDATE'?'b-warn':x.action==='CREATE'?'b-ok':''),esc(x.col),`<code class="small">${esc(x.rid)}</code>`,esc(x.detail)]),{search:true}),btn('Excel audit',()=>exportRows('audit_trail',DB.audit,'xlsx'),'sm','down'))}
   if(view==='rev'){const r=DB.revisions.slice().reverse();return head+`<div class="note ok">Data mentah tidak dapat ditimpa tanpa jejak: setiap perubahan menyimpan salinan versi sebelumnya beserta pengguna, waktu, dan alasan. Penghapusan bersifat soft-delete.</div>`+card('Riwayat revisi ('+r.length+')',tbl(['Waktu','Koleksi','ID','Oleh','Alasan','Versi sebelum',''],r.slice(0,400).map(v=>[fmtDT(v.ts),esc(v.col),`<code class="small">${esc(v.rid)}</code>`,esc(v.by),esc(v.reason),'v'+(v.data._v||1),btn('Lihat',()=>modal('Data sebelum perubahan',`<pre class="small" style="white-space:pre-wrap">${esc(JSON.stringify(v.data,null,2))}</pre>`,'',true),'sm')]),{search:true}))}
   if(view==='backup')return head+backupCard();
@@ -1330,7 +1332,7 @@ PAGES.settings=(p)=>{const st=DB.settings;
   if(!isStaff())return ph('Settings','Pengaturan','')+prof;
   const view=p.view||(isA()?'users':'class');
   const head=ph('Settings','Pengaturan','')+prof+tabs([...(isA()?[['users','Pengguna']]:[]),['class','Perkuliahan'],['instr','Refleksi & microteaching'],...(isA()?[['server','Server & backup'],['demo','Data contoh']]:[])],view,v=>go('settings',{view:v}));
-  if(view==='users'){const c=crud('users',{title:'Pengguna',fields:[{k:'name',l:'Nama',req:true},{k:'role',l:'Peran',t:'select',o:[['admin','Admin/Peneliti'],['dosen','Dosen'],['observer','Observer']],req:true},{k:'username',l:'Username (untuk login)',req:true},{k:'email',l:'Email'},{k:'instIds',l:'Instrumen observasi yang ditugaskan (observer; kosong = semua)',t:'multi',o:all('obsInst').map(o=>[o.id,o.name])}],cols:[{l:'Nama',k:'name'},{l:'Username',k:'username'},{l:'Peran',v:r=>roleName(r.role),x:r=>r.role},{l:'Email',k:'email'},{l:'Password',v:r=>r.mustChange?badge('wajib diganti','b-warn'):badge('aktif','b-ok')},{l:'Kelas',v:r=>all('classes',c=>c.dosenId===r.id||(c.observerIds||[]).includes(r.id)).map(c=>esc(c.name)).join(', ')}],canEdit:true,extra:r=>btn('Reset password',()=>resetPwForm('users',r),'sm'),onAdd:()=>openForm({title:'Tambah pengguna',fields:[{k:'name',l:'Nama',req:true},{k:'role',l:'Peran',t:'select',o:[['admin','Admin/Peneliti'],['dosen','Dosen'],['observer','Observer']],req:true},{k:'username',l:'Username',req:true},{k:'email',l:'Email'},{k:'pw',l:'Password awal (min. 6 karakter)',req:true}],onSave:v=>{if(String(v.pw).length<6){toast('Password minimal 6 karakter');return}if(all('users',u=>(u.username||'').toLowerCase()===v.username.toLowerCase()).length){toast('Username sudah dipakai');return}const pw=v.pw;delete v.pw;ins('users',{...v,instIds:[],...pwFields(pw),mustChange:true});render()}})});return head+card('Pengguna (akun mahasiswa dikelola di Database Mahasiswa / pendaftaran mandiri)',c.html,c.acts)}
+  if(view==='users'){const c=crud('users',{title:'Pengguna',fields:[{k:'name',l:'Nama',req:true},{k:'role',l:'Peran',t:'select',o:[['admin','Admin/Peneliti'],['validator','Validator'],['dosen','Dosen'],['observer','Observer']],req:true},{k:'username',l:'Username (untuk login)',req:true},{k:'email',l:'Email'},{k:'instIds',l:'Instrumen observasi yang ditugaskan (observer; kosong = semua)',t:'multi',o:all('obsInst').map(o=>[o.id,o.name])}],cols:[{l:'Nama',k:'name'},{l:'Username',k:'username'},{l:'Peran',v:r=>roleName(r.role),x:r=>r.role},{l:'Email',k:'email'},{l:'Password',v:r=>r.mustChange?badge('wajib diganti','b-warn'):badge('aktif','b-ok')},{l:'Kelas',v:r=>all('classes',c=>c.dosenId===r.id||(c.observerIds||[]).includes(r.id)).map(c=>esc(c.name)).join(', ')}],canEdit:true,extra:r=>btn('Reset password',()=>resetPwForm('users',r),'sm'),onAdd:()=>openForm({title:'Tambah pengguna',fields:[{k:'name',l:'Nama',req:true},{k:'role',l:'Peran',t:'select',o:[['admin','Admin/Peneliti'],['validator','Validator'],['dosen','Dosen'],['observer','Observer']],req:true},{k:'username',l:'Username',req:true},{k:'email',l:'Email'},{k:'pw',l:'Password awal (min. 6 karakter)',req:true}],onSave:v=>{if(String(v.pw).length<6){toast('Password minimal 6 karakter');return}if(all('users',u=>(u.username||'').toLowerCase()===v.username.toLowerCase()).length){toast('Username sudah dipakai');return}const pw=v.pw;delete v.pw;ins('users',{...v,instIds:[],...pwFields(pw),mustChange:true});render()}})});return head+card('Pengguna (akun mahasiswa dikelola di Database Mahasiswa / pendaftaran mandiri)',c.html,c.acts)}
   if(view==='class')return head+(isA()?card('Pendaftaran mandiri mahasiswa',`<div class="fg">${fieldHTML({k:'regOpen',l:'Status pendaftaran',t:'checkbox',cl:'Buka pendaftaran mandiri di halaman login'},st.reg?.open!==false)}${fieldHTML({k:'regAppr',l:'Verifikasi',t:'checkbox',cl:'Akun baru menunggu persetujuan dosen/admin'},!!st.reg?.approval)}</div><p class="small">Mahasiswa mendaftar memakai <b>kode kelas</b>: ${all('classes').map(c=>badge(c.code||'(kosong)','b-pu')+' '+esc(c.name)).join(' · ')}</p>`+btn('Simpan',()=>{st.reg={open:document.getElementById('f_regOpen').checked,approval:document.getElementById('f_regAppr').checked};logA('UPDATE','settings','reg',JSON.stringify(st.reg));save();toast('Tersimpan')},'p')):'')+card('Pengaturan perkuliahan',`<div class="fg">${fieldHTML({k:'minAttendance',l:'Batas minimum kehadiran (%)',t:'number'},st.minAttendance)}${fieldHTML({k:'groupSize',l:'Anggota per kelompok',t:'number'},st.groupSize)}${fieldHTML({k:'selfAttendance',l:'Presensi digital oleh mahasiswa',t:'checkbox',cl:'Aktifkan (dosen membuka per TM)'},st.selfAttendance)}</div>`+btn('Simpan',()=>{st.minAttendance=+document.getElementById('f_minAttendance').value;st.groupSize=+document.getElementById('f_groupSize').value;st.selfAttendance=document.getElementById('f_selfAttendance').checked;logA('UPDATE','settings','perkuliahan','');save();toast('Tersimpan')},'p'));
   if(view==='instr')return head+card('Pertanyaan refleksi & rubrik microteaching',`<div class="fg">${fieldHTML({k:'reflInd',l:'Pertanyaan refleksi individu',t:'lines',rows:8},st.reflInd)}${fieldHTML({k:'reflGrp',l:'Pertanyaan refleksi kelompok',t:'lines',rows:6},st.reflGrp)}${fieldHTML({k:'mtRubric',l:'Aspek rubrik microteaching',t:'lines',rows:7},st.mtRubric)}${fieldHTML({k:'mtScale',l:'Skala rubrik microteaching',t:'number'},st.mtScale)}</div>`+btn('Simpan',async()=>{const v=await collect([{k:'reflInd',t:'lines'},{k:'reflGrp',t:'lines'},{k:'mtRubric',t:'lines'},{k:'mtScale',t:'number'}]);Object.assign(st,v);logA('UPDATE','settings','instrumen','');save();toast('Tersimpan')},'p'));
   if(view==='server')return head+serverCard()+backupCard();
@@ -1414,16 +1416,16 @@ function initServerModal(before){const hasLocal=!!(before&&(before.pck||[]).leng
    <button class="btn p" onclick="${on(()=>finish(()=>{seedDemo();S.classId=null}))}">Struktur + data contoh</button>`)}
 
 /* ---------------- LOGIN / DAFTAR / PASSWORD ---------------- */
-const ID_LABEL={admin:'Username atau email',dosen:'Username atau email',observer:'Username atau email',mahasiswa:'NIM atau email'};
+const ID_LABEL={admin:'Username atau email',validator:'Username atau email',dosen:'Username atau email',observer:'Username atau email',mahasiswa:'NIM atau email'};
 function renderLogin(msg){
   const root=document.getElementById('root');const role=S._lr||'admin';const sv=serverMode();
   root.innerHTML=`<div class="login"><div class="box"><div class="crumb">Platform Penelitian Pengembangan · Plomp (2013)</div><h1 style="font-size:24px">${APP.name}</h1><p class="muted">${APP.sub}</p>
-  <div class="rolecards">${Object.entries(ROLES).map(([k,l])=>`<div class="rolecard ${k===role?'on':''}" onclick="S._lr='${k}';renderLogin()"><b>${l}</b><span class="small muted">${{admin:'Kelola aplikasi, model, instrumen, data penelitian',dosen:'Kelola pertemuan, LKM, tes, penilaian',mahasiswa:'Kerjakan tes, LKM, angket, refleksi',observer:'Isi instrumen observasi & microteaching'}[k]}</span></div>`).join('')}</div>
+  <div class="rolecards">${Object.entries(ROLES).map(([k,l])=>`<div class="rolecard ${k===role?'on':''}" onclick="S._lr='${k}';renderLogin()"><b>${l}</b><span class="small muted">${{admin:'Kelola aplikasi, model, instrumen, data penelitian',validator:'Telaah & validasi model, instrumen, dan data',dosen:'Kelola pertemuan, LKM, tes, penilaian',mahasiswa:'Kerjakan tes, LKM, angket, refleksi',observer:'Isi instrumen observasi & microteaching'}[k]}</span></div>`).join('')}</div>
   <form id="lgForm" onsubmit="event.preventDefault();doLogin()"><div class="fg"><label class="f"><span>${ID_LABEL[role]}</span><input class="inp" id="lgId" autocomplete="username" autofocus></label>
   <label class="f"><span>Password</span><div style="display:flex;gap:6px"><input class="inp" id="lgPw" type="password" autocomplete="current-password"><button type="button" class="btn sm" onclick="const i=document.getElementById('lgPw');i.type=i.type==='password'?'text':'password'">${icon('eye',14)}</button></div></label></div>
   <div id="lgMsg" class="small" style="color:var(--red);min-height:18px">${esc(msg||'')}</div>
   <div class="btns"><button class="btn p" id="lgBtn" type="submit">${icon('lock',14)} Masuk sebagai ${roleName(role)}</button>${role==='mahasiswa'?`<button type="button" class="btn pu" onclick="registerForm()">${icon('plus',14)} Daftar akun mahasiswa</button>`:''}<span class="grow"></span><button type="button" class="btn sm" onclick="connForm()">${icon('db',13)} ${sv?'Terhubung ke Google Sheets':'Mode lokal'} · atur koneksi</button></div></form>
-  ${sv?'':`<div class="note w" style="margin-top:14px"><b>Mode lokal</b> — data hanya tersimpan di peramban perangkat ini. Hubungkan ke Google Apps Script agar data tersimpan terpusat dan dapat diakses dari semua perangkat.<br>Akun contoh: <code>peneliti / admin123</code> · <code>dosen / dosen123</code> · <code>observer1 / observer123</code> · mahasiswa: <code>26010001 / 26010001</code></div>`}</div></div>`;
+  ${sv?'':`<div class="note w" style="margin-top:14px"><b>Mode lokal</b> — data hanya tersimpan di peramban perangkat ini. Hubungkan ke Google Apps Script agar data tersimpan terpusat dan dapat diakses dari semua perangkat.<br>Akun contoh: <code>peneliti / admin123</code> · <code>validator / validator123</code> · <code>dosen / dosen123</code> · <code>observer1 / observer123</code> · mahasiswa: <code>26010001 / 26010001</code></div>`}</div></div>`;
   setTimeout(()=>document.getElementById('lgId')?.focus(),30)}
 async function doLogin(){const role=S._lr||'admin';const id=document.getElementById('lgId').value.trim(),pw=document.getElementById('lgPw').value;const msg=t=>{document.getElementById('lgMsg').textContent=t};
   if(!id||!pw){msg('Isi ID dan password.');return}const b=document.getElementById('lgBtn');b.disabled=true;b.textContent='Memeriksa…';
